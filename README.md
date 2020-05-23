@@ -4,4 +4,4 @@
 
 ## アーキテクチャー概略図
 
-![アーキテクチャー概略図](https://github.com/tissueMO/expiration-date-manager/blob/master/_figures/architecture.drawio)
+![アーキテクチャー概略図](https://github.com/tissueMO/expiration-date-manager/blob/master/_figures/architecture.png)
