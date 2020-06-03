@@ -6,4 +6,5 @@ def health(request):
     return "OK"
 
 def detect(request):
+    print(request.data.decode())
     return "Detected OK."
