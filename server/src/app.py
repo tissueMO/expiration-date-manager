@@ -24,6 +24,18 @@ def detect():
 def health():
     return jsonify(main.health(request))
 
+##### テスト用コード ###########################################
+@app.route("/test")
+def test():
+    import json
+    from attrdict import AttrDict
+    with open("./request.json", "r") as f:
+        req = AttrDict({
+            "json": json.load(f)
+        })
+        return jsonify(main.detect(req))
+##### テスト用コード ###########################################
+
 if __name__ == "__main__":
     # テスト用サーバー起動
     app.run()

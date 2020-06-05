@@ -25,15 +25,25 @@ fm.register(35, fm.fpioa.UART1_TX, force=True)
 fm.register(34, fm.fpioa.UART1_RX, force=True)
 
 uart = UART(UART.UART1, 1152000, 8, 0, 0, timeout=1000, read_buf_len=4096)
-
+enabled = True
 
 while True:
-    img = sensor.snapshot()
+    if enabled:
+        img = sensor.snapshot()
 
-    # MaixPy IDE で表示できるようにする
-    lcd.display(img)
+        # Grove ポートを通して M5Stack へ転送
+        uart.write(img)
 
-    # Grove ポートを通して M5Stack へ転送
-    uart.write(img)
+        # MaixPy IDE で表示できるようにする
+        lcd.display(img)
 
-    time.sleep(0.5)
+    # M5Stack からの命令を取得
+    line =  uart.readline()
+    if line is not None:
+        statement = line.decode("utf-8")
+        # 改行コードを除去
+        statement = statement[:(len(statement) - 2)]
+        if statement == "pause":
+            enabled = False
+        elif statement == "resume":
+            enabled = True

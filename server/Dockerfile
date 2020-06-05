@@ -5,7 +5,8 @@ WORKDIR /app
 # 起動時にソースディレクトリーをマウントして使う
 # ADD src .
 ADD src/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+ && pip freeze
 
 # 起動時に上書きして 1 にすることでリモートデバッグを有効にできる仕掛け
 ENV REMOTE_DEBUG 0
