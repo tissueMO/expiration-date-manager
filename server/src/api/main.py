@@ -105,20 +105,22 @@ def detect(request) -> Dict[str, Any]:
     with open("./response.json", "w") as w:
         w.write(json.dumps(response_json, ensure_ascii=False, indent=4))
 
-    # レスポンスのうち全文テキストを抜き出す
+    # レスポンスのうち全文テキストの半角スペースをすべて除去した上で抜き出す
     found_text = response_json \
         .get("responses", [{}])[0] \
         .get("textAnnotations", [{}])[0] \
-        .get("description")
+        .get("description", "") \
+        .replace(" ", "")
     print(f"found_test: {found_text}")
 
-    if found_text is None:
+    if found_text == "":
         return {
             "success": False,
             "result": None
         }
 
     # 賞味期限っぽい部分を抜き出す
+    expiration_date = None
     for date_format_pattern in DATE_FORMAT_PATTERNS:
         # 正規表現で表されるパターンで抜き出す
         print(date_format_pattern)
@@ -137,6 +139,6 @@ def detect(request) -> Dict[str, Any]:
         break
 
     return {
-        "success": True,
-        "result": expiration_date
+        "success": expiration_date is not None,
+        "result": expiration_date if expiration_date is not None else None
     }
