@@ -18,8 +18,26 @@ const int port = PORT;
 // 受け取る画像の仕様とバッファを確保
 const int x = 160;
 const int y = 120;
-uint8_t rx_buffer[x * y * 2];
-uint16_t rx_buffer2[x * y];
+uint8_t imageBuffer8bits[x * y * 2];
+uint16_t imageBuffer16bits[x * y];
+
+int getImageLength() {
+  int length = 0;
+  String temp;
+  temp = String("{ \"width\": ") + String(x) + ", \"height\": " + String(y) + ", \"image\": [";
+  length += temp.length();
+
+  for (int i = 0; i < x * y; i++) {
+    temp = String(imageBuffer16bits[i]);
+    length += temp.length() + 1;
+  }
+
+  length--;
+  temp = String("] }");
+  length += temp.length();
+
+  return length;
+}
 
 void setup() {
   M5.begin();
@@ -44,6 +62,11 @@ void setup() {
   Serial.println("Wi-Fi connected.");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
+
+//  // ここまでの処理の途中にカメラから送られてきたデータをすべて破棄
+//  while (Serial2.available()) {
+//    Serial2.readBytes(imageBuffer8bits, x * y * 2);
+//  }
 }
 
 void loop() {
@@ -51,19 +74,22 @@ void loop() {
 
   if (Serial2.available()) {
     // カメラから画像が送られてきたらLCDに表示する
-    Serial2.readBytes(rx_buffer, x * y * 2);
-    Serial.println("Received by UnitV.");
+    Serial.println(String("Received by UnitV.") + Serial2.available() + " bytes.");
+    Serial2.readBytes(imageBuffer8bits, x * y * 2);
  
     for (int i = 0; i < x * y; i++) {
-      rx_buffer2[i] = (rx_buffer[2 * i] << 8) + rx_buffer[2 * i + 1];
+      imageBuffer16bits[i] = (imageBuffer8bits[2 * i] << 8) + imageBuffer8bits[2 * i + 1];
     }
 
-    M5.Lcd.drawBitmap(0, 0, x, y, rx_buffer2);
+    M5.Lcd.drawBitmap(0, 0, x, y, imageBuffer16bits);
   }
 
   if (M5.BtnC.wasReleased()) {
     // ボタン押下時点のカメラ画像をサーバーに送る
     Serial.println("Pressed C Button.");
+
+    // カメラからの受信を停止する
+    Serial2.println("pause");
 
     // サーバーに接続
     Serial.println("Connecting to Server...");
@@ -73,32 +99,37 @@ void loop() {
     }
 
     // リクエスト生成
-    String body = String("{ \"width\": ");
-    body += String(x);
-    body += ", \"height\": ";
-    body += String(y);
-    body += ", \"image\": [";
-    for (int i = 0; i < x * y; i++) {
-      body += String(rx_buffer[i]);
-      if (i + 1 < x * y) {
-        body += ",";
-      }
-    }
-    body += "] }";
-
     String url = "/detect";
     String request = 
       String("POST ") + url + " HTTP/1.1\r\n" +
+      "Host: " + host + "\r\n" +
+      "Accept: */*\r\n" +
       "Connection: close\r\n" +
       "Content-Type: application/json\r\n" +
-      "Content-Length: " + body.length() + "\r\n" +
+      "Content-Length: " + getImageLength() + "\r\n" +
       "\r\n";
-
-    // リクエスト送信
     Serial.println(request);
     client.print(request);
-    client.print(body);
-    delay(10);
+
+    // リクエストボディ生成しながら随時送信
+    client.print(
+      String("{ \"width\": ") + String(x) +
+      ", \"height\": " + String(y) +
+      ", \"image\": ["
+    );
+
+    String temp;
+    for (int i = 0; i < x * y; i++) {
+      temp = String(imageBuffer16bits[i]);
+      if (i + 1 < x * y) {
+        temp += ",";
+      }
+      client.print(temp);
+    }
+
+    client.print(String("] }"));
+
+    delay(100);
     Serial.println("Closing connection.");
   
     // レスポンス受信
@@ -108,5 +139,8 @@ void loop() {
       Serial.print(line);
     }
     Serial.println();
+
+    // カメラからの受信を再開する
+    Serial2.println("resume");
   }
 }
