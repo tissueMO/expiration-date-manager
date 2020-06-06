@@ -18,23 +18,21 @@ from api import main
 
 @app.route("/detect", methods=["POST"])
 def detect():
+    """与えられた画像から賞味期限を読み取ります。
+    """
     return jsonify(main.detect(request))
+
+@app.route("/register", methods=["POST"])
+def register():
+    """与えられた画像とセッションIDを紐づけて本登録を行います。
+    """
+    return jsonify(main.register(request))
 
 @app.route("/health")
 def health():
+    """システムが正常な状態であるかどうかを返します。
+    """
     return jsonify(main.health(request))
-
-##### テスト用コード ###########################################
-@app.route("/test")
-def test():
-    import json
-    from attrdict import AttrDict
-    with open("./request.json", "r") as f:
-        req = AttrDict({
-            "json": json.load(f)
-        })
-        return jsonify(main.detect(req))
-##### テスト用コード ###########################################
 
 if __name__ == "__main__":
     # テスト用サーバー起動
