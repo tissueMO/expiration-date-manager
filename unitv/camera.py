@@ -25,7 +25,7 @@ fm.register(35, fm.fpioa.UART1_TX, force=True)
 fm.register(34, fm.fpioa.UART1_RX, force=True)
 
 uart = UART(UART.UART1, 1152000, 8, 0, 0, timeout=2000, read_buf_len=4096)
-enabled = True
+enabled = False
 
 print("---- Camera Started ---------------------------------------")
 while True:
