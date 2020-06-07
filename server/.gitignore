@@ -1,2 +1,5 @@
 .vscode/
 settings.conf
+db/*.db
+db/capture/*.jpg
+__pycache__
