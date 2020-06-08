@@ -219,7 +219,7 @@ def _find_expiration_date(found_text: str) -> Dict[str, int]:
             if expiration_date["year"] < lower:
                 # Y2K問題対策: 年の下二桁が現在よりも小さいときは上二桁に繰り上がりが起きている
                 upper += 1
-            expiration_date["year"] = f"{upper:02}{expiration_date['year']:02}"
+            expiration_date["year"] = int(f"{upper:02}{expiration_date['year']:02}")
             logger.debug(f"年を4桁表記に補完: {expiration_date['year']}")
 
         # 存在する年月日かどうか検証
