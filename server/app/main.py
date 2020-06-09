@@ -40,6 +40,14 @@ def cancel():
     return jsonify(cancel.execute(request))
 
 
+@app.route("/command")
+def command():
+    """本登録済みの商品に対して任意のアクションを行います。
+    """
+    from app.api import command
+    return jsonify(command.execute(request))
+
+
 @app.route("/health")
 def health():
     """ステータスコード 200 を返してシステムが正常な状態であることを表します。

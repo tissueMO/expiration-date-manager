@@ -72,7 +72,7 @@ def execute(request) -> Dict[str, Any]:
         except NoResultFound:
             response = {
                 "success": False,
-                "message": f"指定されたセッションIDから仮登録テーブル上の該当するレコードを特定できませんでした: {session_id}"
+                "message": f"指定されたセッションIDから仮登録テーブル上の該当するレコードを特定できませんでした: {session_id}",
             }
             logger.info(f"API Exit: {response}")
             return response
