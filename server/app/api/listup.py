@@ -89,7 +89,7 @@ def _send_products(host_url: str, products: List[Product]):
     parameters = {
         "token": SLACK_TOKEN,
         "channels": SLACK_NOTIFY_CHANNEL,
-        "text": "現在管理されている商品は以下の通りです。",
+        "text": "現在管理されている商品は以下の通りです。" if len(products) > 0 else "現在管理されている商品はありません。",
         "attachments": [
             {
                 "fallback": "This food have not expired yet.",

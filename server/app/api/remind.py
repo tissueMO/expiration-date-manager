@@ -87,6 +87,11 @@ def _push_remind_to_slack(host_url: str, days: int, products: List[Product]):
     Raises:
         HTTPError - Slack API の呼出に失敗
     """
+    if len(products) == 0:
+        # 1件も無い場合は何もしない
+        logger.info(f"リマインド対象の商品がありません")
+        return
+
     # 公開用画像URLのリストに変換
     image_urls = [
         f"{host_url}{GET_IMAGE_URL}{os.path.basename(products.image_path)}"
