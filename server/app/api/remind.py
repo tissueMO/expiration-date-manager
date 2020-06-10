@@ -134,7 +134,7 @@ def _push_remind_to_slack(host_url: str, days: int, products: List[Product]):
                         "name": "action",
                         "type": "button",
                         "value": "remind",
-                        "text": "当日に再通知",
+                        "text": "無視",
                     },
                 ],
             }
