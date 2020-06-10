@@ -5,6 +5,7 @@ import os
 import datetime
 import requests
 import traceback
+import re
 from requests.exceptions import HTTPError
 from datetime import datetime as dt
 from typing import Any, Dict, List
@@ -35,13 +36,22 @@ def execute(request) -> Dict[str, Any]:
     """本登録済みの商品に対して任意のアクションを行います。
 
     Arguments:
-        request -- GET リクエスト
-            request.args.get("action"): "used" or "shoppinglist" or "remind",
-                // used: 既に消費したものとして扱う
-                // shopppinglist: Slackの買い物リストチャンネルに追記して以後通知の対象から外す
-                // remind: 賞味期限が切れたときに再通知する
-            request.args.get("product_id"): xxxxx
-                // 本登録テーブル上のID
+        request -- POST リクエスト
+            {
+                "callback_id": "command_xxx",
+                    // SlackのAttachmentsに設定されたコールバックID、xxxの部分は本登録テーブル上のID
+                "actions": [
+                    {
+                        "name": "command",
+                        "value": "...",
+                            // used: 既に消費したものとして扱う
+                            // shopppinglist: Slackの買い物リストチャンネルに追記して以後通知の対象から外す
+                            // remind: 賞味期限が切れたときに再通知する
+                        ...
+                    },
+                ],
+                ...
+            }
 
     Returns:
         Dict[str, Any] -- 処理結果
@@ -55,9 +65,10 @@ def execute(request) -> Dict[str, Any]:
     """
     logger.info(f"API Called.")
 
-    # クエリー文字列取り出し
-    action = request.args.get("action")
-    product_id = request.args.get("product_id")
+    # リクエストパラメーター取り出し
+    action = request.json["action"][0]["value"]
+    callback_id = request.json["callback_id"]
+    product_id = re.match(r"command_(\d+)", callback_id).groups()[0]
 
     with common.create_session() as session:
         try:

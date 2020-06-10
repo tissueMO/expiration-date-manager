@@ -40,12 +40,36 @@ def cancel():
     return jsonify(cancel.execute(request))
 
 
-@app.route("/command")
+@app.route("/remind")
+def remind():
+    """n日後に期限が迫っているものがあればSlackに通知します。
+    """
+    from app.api import remind
+    return jsonify(remind.execute(request))
+
+
+@app.route("/command", methods=["POST"])
 def command():
     """本登録済みの商品に対して任意のアクションを行います。
     """
     from app.api import command
     return jsonify(command.execute(request))
+
+
+@app.route("/listup", methods=["POST"])
+def listup():
+    """本登録済みの商品イメージをすべてSlackに通知します。
+    """
+    from app.api import listup
+    return jsonify(listup.execute(request))
+
+
+@app.route("/images/<string:file_name>")
+def get_image(file_name):
+    """[バイナリー返却] 本登録済みのイメージ画像を取得します。
+    """
+    from app.api import image
+    return image.execute(file_name)
 
 
 @app.route("/health")
