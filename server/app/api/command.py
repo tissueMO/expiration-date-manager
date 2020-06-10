@@ -6,6 +6,8 @@ import datetime
 import requests
 import traceback
 import re
+import json
+import urllib.parse
 from requests.exceptions import HTTPError
 from datetime import datetime as dt
 from typing import Any, Dict, List
@@ -65,9 +67,15 @@ def execute(request) -> Dict[str, Any]:
     """
     logger.info(f"API Called.")
 
+    # URLエンコードされた特殊なペイロードを辞書型に変換
+    payload = request.get_data().decode("utf-8")
+    payload = payload[len("payload="):]
+    payload = urllib.parse.unquote(payload)
+
     # リクエストパラメーター取り出し
-    action = request.json["action"][0]["value"]
-    callback_id = request.json["callback_id"]
+    request_json = json.loads(payload)
+    action = request_json["actions"][0]["value"]
+    callback_id = request_json["callback_id"]
     product_id = re.match(r"command_(\d+)", callback_id).groups()[0]
 
     with common.create_session() as session:
@@ -77,10 +85,7 @@ def execute(request) -> Dict[str, Any]:
                 .filter(Product.id == product_id) \
                 .one()
         except NoResultFound:
-            response = {
-                "success": False,
-                "message": f"指定された本登録IDに該当するレコードを特定できませんでした: {product_id}",
-            }
+            response = f"指定された本登録IDに該当するレコードを特定できませんでした: {product_id}"
             logger.info(f"API Exit: {response}")
             return response
 
@@ -95,30 +100,20 @@ def execute(request) -> Dict[str, Any]:
             try:
                 _add_shopping_list(product.image_path)
             except HTTPError as e:
-                message = f"買い物リストチャンネルへの投稿に失敗しました"
-                logger.exception(message, e)
-                response = {
-                    "success": False,
-                    "message": message,
-                }
+                response = f"買い物リストチャンネルへの投稿に失敗しました"
+                logger.exception(response, e)
                 logger.info(f"API Exit: {response}")
                 return response
 
             product.added_shopping_list = 1
         else:
-            response = {
-                "success": False,
-                "message": f"無効な操作名が指定されました: {action}",
-            }
+            response = f"無効な操作名が指定されました: {action}"
             logger.info(f"API Exit: {response}")
             return response
 
         session.commit()
 
-    response = {
-        "success": True,
-        "message": None,
-    }
+    response = ""
     logger.info(f"API Exit: {response}")
     return response
 

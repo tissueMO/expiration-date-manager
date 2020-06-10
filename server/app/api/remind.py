@@ -5,6 +5,7 @@ import os
 import datetime
 import requests
 import traceback
+import json
 from requests.exceptions import HTTPError
 from datetime import datetime as dt
 from typing import Any, Dict, List
@@ -23,14 +24,14 @@ config.read("settings.conf", encoding="utf-8")
 ##### 設定読み込み ####################
 # Slack API トークン
 SLACK_TOKEN = config.get("slack", "token")
-# Slack 通知用チャンネル
-SLACK_NOTIFY_CHANNEL = config.get("slack", "notify_channel")
+# メッセージを送信するための Slack Incoming Webhook URL
+SLACK_INCOMING_WEBHOOK_URL = config.get("slack", "incoming_webhook_url")
+# このサーバーの外から見たときのURLのベース
+URL_NAME_BASE = config.get("slack", "url_name_base")
 
 ##### 定数定義 ####################
-# メッセージを書き込むための Slack API エンドポイント
-SLACK_POST_MESSAGE_URL = "https://slack.com/api/chat.postMessage"
 # 本登録済みの商品イメージ画像を取得するためのURL
-GET_IMAGE_URL = "images/"
+GET_IMAGE_URL = f"https://{URL_NAME_BASE}/images/"
 
 
 def execute(request) -> Dict[str, Any]:
@@ -40,7 +41,7 @@ def execute(request) -> Dict[str, Any]:
 
     Arguments:
         request -- GET リクエスト
-            request.args.get("days"): ピックアップ対象とする呼出時点の日付を起点とした日数 (+で未来、0で当日、-で過去)
+            request.args.get("days"): {int} ピックアップ対象とする呼出時点の日付を起点とした日数 (+で未来、0で当日、-で過去)
 
     Returns:
         Dict[str, Any] -- 処理結果
@@ -52,22 +53,22 @@ def execute(request) -> Dict[str, Any]:
     logger.info(f"API Called.")
 
     # クエリー文字列取り出し
-    days = request.args.get("days")
+    days = int(request.args.get("days"))
 
     with common.create_session() as session:
-        # 指定された日数後に賞味期限が切れるものを抽出
-        target_date = dt.date(dt.today() + datetime.timedelta(days=days))
+        # 指定された日数後に期限が切れるものを抽出
+        target_date = dt.combine(dt.now(), datetime.time()) + datetime.timedelta(days=days)
         target_products = session \
             .query(Product) \
             .filter(
-                dt.date(Product.expiration_date) == target_date and \
+                Product.expiration_date == target_date and \
                 not Product.added_shopping_list and \
                 not Product.consumed \
             ) \
             .all()
 
         # Slackにリマインド通知を送信
-        _push_remind_to_slack(request.host_url, days, target_products)
+        _push_remind_to_slack(target_products, days)
 
     response = {
         "success": True,
@@ -76,13 +77,12 @@ def execute(request) -> Dict[str, Any]:
     return response
 
 
-def _push_remind_to_slack(host_url: str, days: int, products: List[Product]):
+def _push_remind_to_slack(products: List[Product], days: int):
     """Slackの通知用チャンネルにコマンドボタン付きリマインドを送信します。
 
     Arguments:
-        host_url {str} -- このサーバーのホスト名
-        days {int} -- あと何日で期限切れになるかを表す日数
         products {List[Product]} -- リマインド対象の本登録商品リスト
+        days {int} -- あと何日で期限切れになるかを表す日数
 
     Raises:
         HTTPError - Slack API の呼出に失敗
@@ -94,7 +94,7 @@ def _push_remind_to_slack(host_url: str, days: int, products: List[Product]):
 
     # 公開用画像URLのリストに変換
     image_urls = [
-        f"{host_url}{GET_IMAGE_URL}{os.path.basename(products.image_path)}"
+        f"{GET_IMAGE_URL}{os.path.basename(product.image_path)}"
         for product in products
     ]
 
@@ -107,15 +107,14 @@ def _push_remind_to_slack(host_url: str, days: int, products: List[Product]):
 
     # POST リクエストパラメーターを生成
     parameters = {
-        "token": SLACK_TOKEN,
-        "channels": SLACK_NOTIFY_CHANNEL,
         "text": message,
         "attachments": [
             {
+                "text": f"{dt.strftime(product.created_time, '登録日: %Y-%m-%d')}",
+                "image_url": image_urls[i],
                 "fallback": "This food has expired.",
                 "callback_id": f"command_{product.id}",
                 "color": "warning",
-                "image_url": image_urls[i],
                 "attachment_type": "default",
                 "actions": [
                     {
@@ -141,11 +140,13 @@ def _push_remind_to_slack(host_url: str, days: int, products: List[Product]):
             for i, product in enumerate(products)
         ],
     }
+    logger.debug(f"Slack API Request Parameters:\n{json.dumps(parameters, indent=4)}")
 
     # Slack API に POST する
     response = requests.post(
-        url=SLACK_POST_MESSAGE_URL,
-        params=parameters
+        url=SLACK_INCOMING_WEBHOOK_URL,
+        data=json.dumps(parameters),
+        headers={"Content-Type": "application/json"}
     )
     logger.debug(f"Slack API Response: {response.status_code}\n{response.text}")
 

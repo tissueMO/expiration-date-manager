@@ -5,6 +5,7 @@ import os
 import datetime
 import requests
 import traceback
+import json
 from requests.exceptions import HTTPError
 from datetime import datetime as dt
 from typing import Any, Dict, List
@@ -23,14 +24,14 @@ config.read("settings.conf", encoding="utf-8")
 ##### 設定読み込み ####################
 # Slack API トークン
 SLACK_TOKEN = config.get("slack", "token")
-# Slack 通知用チャンネル
-SLACK_NOTIFY_CHANNEL = config.get("slack", "notify_channel")
+# メッセージを送信するための Slack Incoming Webhook URL
+SLACK_INCOMING_WEBHOOK_URL = config.get("slack", "incoming_webhook_url")
+# このサーバーの外から見たときのURLのベース
+URL_NAME_BASE = config.get("slack", "url_name_base")
 
 ##### 定数定義 ####################
-# メッセージを書き込むための Slack API エンドポイント
-SLACK_POST_MESSAGE_URL = "https://slack.com/api/chat.postMessage"
 # 本登録済みの商品イメージ画像を取得するためのURL
-GET_IMAGE_URL = "images/"
+GET_IMAGE_URL = f"https://{URL_NAME_BASE}/images/"
 
 
 def execute(request) -> Dict[str, Any]:
@@ -60,7 +61,7 @@ def execute(request) -> Dict[str, Any]:
             .all()
 
         # Slackに情報を送信
-        _send_products(request.host_url, products)
+        _send_products(products)
 
     response = {
         "success": True,
@@ -73,7 +74,6 @@ def _send_products(host_url: str, products: List[Product]):
     """Slackの通知用リストチャンネルに商品情報を投稿します。
 
     Arguments:
-        host_url {str} -- このサーバーのホスト名
         products {List[Product]} -- 商品リスト
 
     Raises:
@@ -81,31 +81,34 @@ def _send_products(host_url: str, products: List[Product]):
     """
     # 公開用画像URLのリストに変換
     image_urls = [
-        f"{host_url}{GET_IMAGE_URL}{os.path.basename(products.image_path)}"
+        f"{GET_IMAGE_URL}{os.path.basename(product.image_path)}"
         for product in products
     ]
 
     # POST リクエストパラメーターを生成
     parameters = {
         "token": SLACK_TOKEN,
-        "channels": SLACK_NOTIFY_CHANNEL,
+        "channel": SLACK_NOTIFY_CHANNEL,
         "text": "現在管理されている商品は以下の通りです。" if len(products) > 0 else "現在管理されている商品はありません。",
         "attachments": [
             {
+                "text": f"{dt.strftime(product.created_time, '登録日: %Y-%m-%d')}",
+                "image_url": image_urls[i],
                 "fallback": "This food have not expired yet.",
                 # "color": "good",
-                "image_url": image_urls[i],
                 "attachment_type": "default",
                 "pretext": f"期限: {dt.strftime(product.expiration_date, '%Y-%m-%d')}",
             }
             for i, product in enumerate(products)
         ],
     }
+    logger.debug(f"Slack API Request Parameters:\n{json.dumps(parameters, indent=4)}")
 
     # Slack API に POST する
     response = requests.post(
-        url=SLACK_POST_MESSAGE_URL,
-        params=parameters
+        url=SLACK_INCOMING_WEBHOOK_URL,
+        data=json.dumps(parameters),
+        headers={"Content-Type": "application/json"}
     )
     logger.debug(f"Slack API Response: {response.status_code}\n{response.text}")
 
