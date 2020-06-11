@@ -10,7 +10,6 @@ from requests.exceptions import HTTPError
 from datetime import datetime as dt
 from typing import Any, Dict, List
 from configparser import ConfigParser
-from sqlalchemy.orm.exc import NoResultFound
 
 # 独自モジュール読み込み
 import app.common as common

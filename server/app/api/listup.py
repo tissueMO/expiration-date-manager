@@ -10,7 +10,6 @@ from requests.exceptions import HTTPError
 from datetime import datetime as dt
 from typing import Any, Dict, List
 from configparser import ConfigParser
-from sqlalchemy.orm.exc import NoResultFound
 
 # 独自モジュール読み込み
 import app.common as common
@@ -44,16 +43,20 @@ def execute(request) -> Dict[str, Any]:
         Dict[str, Any] -- 処理結果
             {
                 // 操作に成功したかどうか
-                "success": False or True
+                "success": False or True,
+
+                // 抽出した本登録レコードのIDリスト
+                "targets": [...]
             }
     """
     logger.info(f"API Called.")
 
     with common.create_session() as session:
         # 期限前で未アクションの商品をすべて抽出
+        target_date = dt.combine(dt.now(), datetime.time())
         products = session \
             .query(Product) \
-            .filter(dt.date(Product.expiration_date) > dt.today()) \
+            .filter(Product.expiration_date >= target_date) \
             .filter(Product.added_shopping_list == 0) \
             .filter(Product.consumed == 0) \
             .all()
@@ -61,14 +64,16 @@ def execute(request) -> Dict[str, Any]:
         # Slackに情報を送信
         _send_products(products)
 
-    response = {
-        "success": True,
-    }
+        response = {
+            "success": True,
+            "targets": [product.id for product in products],
+        }
+
     logger.info(f"API Exit: {response}")
     return response
 
 
-def _send_products(host_url: str, products: List[Product]):
+def _send_products(products: List[Product]):
     """Slackの通知用リストチャンネルに商品情報を投稿します。
 
     Arguments:
@@ -83,19 +88,22 @@ def _send_products(host_url: str, products: List[Product]):
         for product in products
     ]
 
+    if len(products) > 0:
+        message = "現在管理されている商品は以下の通りです。"
+    else:
+        message = "現在管理されている商品はありません。"
+
     # POST リクエストパラメーターを生成
     parameters = {
-        "token": SLACK_TOKEN,
-        "channel": SLACK_NOTIFY_CHANNEL,
-        "text": "現在管理されている商品は以下の通りです。" if len(products) > 0 else "現在管理されている商品はありません。",
+        "text": message,
         "attachments": [
             {
-                "text": f"{dt.strftime(product.created_time, '登録日: %Y-%m-%d')}",
+                "text": f"{dt.strftime(product.created_time, '登録日：%Y-%m-%d')}",
                 "image_url": image_urls[i],
                 "fallback": "This food have not expired yet.",
                 # "color": "good",
                 "attachment_type": "default",
-                "pretext": f"期限: {dt.strftime(product.expiration_date, '%Y-%m-%d')}",
+                "pretext": f"期限日：{dt.strftime(product.expiration_date, '%Y-%m-%d')}",
             }
             for i, product in enumerate(products)
         ],
