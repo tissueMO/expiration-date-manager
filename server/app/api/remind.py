@@ -47,7 +47,10 @@ def execute(request) -> Dict[str, Any]:
         Dict[str, Any] -- 処理結果
             {
                 // 操作に成功したかどうか
-                "success": False or True
+                "success": False or True,
+
+                // 抽出した本登録レコードのIDリスト
+                "targets": [...]
             }
     """
     logger.info(f"API Called.")
@@ -60,19 +63,19 @@ def execute(request) -> Dict[str, Any]:
         target_date = dt.combine(dt.now(), datetime.time()) + datetime.timedelta(days=days)
         target_products = session \
             .query(Product) \
-            .filter(
-                Product.expiration_date == target_date and \
-                not Product.added_shopping_list and \
-                not Product.consumed \
-            ) \
+            .filter(Product.expiration_date == target_date) \
+            .filter(Product.added_shopping_list == 0) \
+            .filter(Product.consumed == 0) \
             .all()
 
         # Slackにリマインド通知を送信
         _push_remind_to_slack(target_products, days)
 
-    response = {
-        "success": True,
-    }
+        response = {
+            "success": True,
+            "targets": [product.id for product in target_products],
+        }
+
     logger.info(f"API Exit: {response}")
     return response
 
@@ -101,16 +104,16 @@ def _push_remind_to_slack(products: List[Product], days: int):
     if days == 0:
         message = f"本日、期限が切れます。"
     elif days > 0:
-        message = f"あと {days} 日で期限が切れます。"
+        message = f"あと{days}日で期限が切れます。"
     else:
-        message = f"{days} 日前に期限が切れています。"
+        message = f"{days}日前に期限が切れています。"
 
     # POST リクエストパラメーターを生成
     parameters = {
         "text": message,
         "attachments": [
             {
-                "text": f"{dt.strftime(product.created_time, '登録日: %Y-%m-%d')}",
+                "text": f"{dt.strftime(product.created_time, '登録日：%Y-%m-%d')}",
                 "image_url": image_urls[i],
                 "fallback": "This food has expired.",
                 "callback_id": f"command_{product.id}",

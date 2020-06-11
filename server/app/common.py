@@ -12,6 +12,7 @@ import cv2
 import numpy as np
 import base64
 import json
+import urllib.parse
 sys.path.insert(0, ".")
 
 ### ロギング設定ロード
@@ -118,3 +119,18 @@ def image_to_base64(numpy_image: np.ndarray) -> str:
     _, data = cv2.imencode(".jpg", numpy_image)
     base64_image = base64.b64encode(data).decode(encoding="utf-8")
     return base64_image
+
+
+def decode_request_payload(request) -> Dict[str, Any]:
+    """URLエンコードされた形式のリクエストボディをデコードして辞書型に変換します。
+
+    Arguments:
+        request -- POST リクエスト
+
+    Returns:
+        Dict[str, Any] -- デコード済みのリクエストボディ
+    """
+    payload = request.get_data().decode("utf-8")
+    payload = payload[len("payload="):]
+    payload = urllib.parse.unquote(payload)
+    return payload

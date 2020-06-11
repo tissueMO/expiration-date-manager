@@ -7,7 +7,6 @@ import requests
 import traceback
 import re
 import json
-import urllib.parse
 from requests.exceptions import HTTPError
 from datetime import datetime as dt
 from typing import Any, Dict, List
@@ -68,15 +67,21 @@ def execute(request) -> Dict[str, Any]:
     logger.info(f"API Called.")
 
     # URLエンコードされた特殊なペイロードを辞書型に変換
-    payload = request.get_data().decode("utf-8")
-    payload = payload[len("payload="):]
-    payload = urllib.parse.unquote(payload)
+    payload = common.decode_request_payload(request)
+    logger.debug(f"payload={payload}")
 
     # リクエストパラメーター取り出し
     request_json = json.loads(payload)
     action = request_json["actions"][0]["value"]
+    original_message = request_json["original_message"]
     callback_id = request_json["callback_id"]
     product_id = re.match(r"command_(\d+)", callback_id).groups()[0]
+    attachment_index = [
+        i
+        for i, attachment in enumerate(request_json["original_message"]["attachments"])
+        if attachment["callback_id"] == callback_id
+    ][0]
+    logger.debug(f"attachments[{attachment_index}]: callback_id={callback_id}")
 
     with common.create_session() as session:
         try:
@@ -113,7 +118,21 @@ def execute(request) -> Dict[str, Any]:
 
         session.commit()
 
-    response = ""
+    # コマンドの元となったメッセージのうち今回処理したデータを抜いて返す
+    del original_message["attachments"][attachment_index]
+    if len(original_message["attachments"]) > 0:
+        # まだ他のリマインドが残っていたら元のメッセージを置き換える
+        response = {
+            "text": original_message["text"],
+            "attachments": original_message["attachments"],
+            "replace_original": True,
+        }
+    else:
+        # すべてのリマインドを処理し終わったら元のメッセージを消す
+        response = {
+            "delete_original": True,
+        }
+
     logger.info(f"API Exit: {response}")
     return response
 

@@ -53,11 +53,9 @@ def execute(request) -> Dict[str, Any]:
         # 期限前で未アクションの商品をすべて抽出
         products = session \
             .query(Product) \
-            .filter(
-                dt.date(Product.expiration_date) > dt.today() and \
-                not Product.added_shopping_list and \
-                not Product.consumed \
-            ) \
+            .filter(dt.date(Product.expiration_date) > dt.today()) \
+            .filter(Product.added_shopping_list == 0) \
+            .filter(Product.consumed == 0) \
             .all()
 
         # Slackに情報を送信
