@@ -40,14 +40,6 @@ def cancel():
     return jsonify(cancel.execute(request))
 
 
-@app.route("/remind")
-def remind():
-    """n日後に期限が迫っているものがあればSlackに通知します。
-    """
-    from app.api import remind
-    return jsonify(remind.execute(request))
-
-
 @app.route("/command", methods=["POST"])
 def command():
     """本登録済みの商品に対して任意のアクションを行います。
@@ -58,10 +50,18 @@ def command():
 
 @app.route("/listup", methods=["POST"])
 def listup():
-    """本登録済みの商品イメージをすべてSlackに通知します。
+    """本登録済みの商品イメージを非同期的にSlackへ通知します。
     """
     from app.api import listup
     return jsonify(listup.execute(request))
+
+
+@app.route("/listup/async", methods=["POST"])
+def listup_async():
+    """与えられた本登録済みの商品イメージをすべてSlackへ通知します。
+    """
+    from app.api import listup_async
+    return jsonify(listup_async.execute(request))
 
 
 @app.route("/images/<string:file_name>")
@@ -70,6 +70,22 @@ def get_image(file_name):
     """
     from app.api import image
     return image.execute(file_name)
+
+
+@app.route("/remind")
+def remind():
+    """n日後に期限が迫っているものがあればSlackへ通知します。
+    """
+    from app.api import remind
+    return jsonify(remind.execute(request))
+
+
+@app.route("/cleanup")
+def cleanup():
+    """古くなった過去データをクリーンアップします。
+    """
+    from app.api import cleanup
+    return jsonify(cleanup.execute(request))
 
 
 @app.route("/health")
@@ -82,9 +98,9 @@ def health():
 if __name__ == "__main__":
     import os
     import ptvsd
-    import app.common as common
+    import app.log as log
 
-    logger = common.get_logger("Entrypoint")
+    logger = log.get_logger("Entrypoint")
 
     # リモートデバッグを有効にする
     logger.info("Waiting for remote debugging...")

@@ -9,9 +9,10 @@ from sqlalchemy.orm.exc import NoResultFound
 
 # 独自モジュール読み込み
 import app.common as common
+import app.log as log
 from model.temporary_products import TemporaryProduct
 from model.products import Product
-logger = common.get_logger("cancel")
+logger = log.get_logger("cancel")
 
 # 設定ファイル読み込み
 config = ConfigParser()

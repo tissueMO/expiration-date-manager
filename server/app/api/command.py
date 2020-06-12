@@ -14,9 +14,10 @@ from configparser import ConfigParser
 from sqlalchemy.orm.exc import NoResultFound
 
 # 独自モジュール読み込み
+import app.log as log
 import app.common as common
 from model.products import Product
-logger = common.get_logger("command")
+logger = log.get_logger("command")
 
 # 設定ファイル読み込み
 config = ConfigParser()

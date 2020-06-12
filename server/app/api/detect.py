@@ -13,9 +13,10 @@ from typing import Any, Dict, List
 from configparser import ConfigParser
 
 # 独自モジュール読み込み
+import app.log as log
 import app.common as common
 from model.temporary_products import TemporaryProduct
-logger = common.get_logger("detect")
+logger = log.get_logger("detect")
 
 # 設定ファイル読み込み
 config = ConfigParser()

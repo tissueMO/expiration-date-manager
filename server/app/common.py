@@ -15,11 +15,6 @@ import json
 import urllib.parse
 sys.path.insert(0, ".")
 
-### ロギング設定ロード
-import logging
-from logging import config
-config.fileConfig("./logging.ini")
-
 ### 設定値ロード
 import configparser
 config = configparser.ConfigParser()
@@ -78,18 +73,6 @@ def create_session() -> SessionContext:
         Session -- DB接続セッション
     """
     return SessionContextFactory(echo=True).create()
-
-
-def get_logger(name: str) -> logging.Logger:
-    """指定したモジュール名でロガーオブジェクトを生成します。
-
-    Arguments:
-        name {str} -- モジュール名
-
-    Returns:
-        Logger -- ロガーオブジェクト
-    """
-    return logging.getLogger(name)
 
 
 def convert_request_image_to_ndarray(request_image: List[int]) -> np.ndarray:

@@ -15,9 +15,9 @@ from sqlalchemy.orm.exc import NoResultFound
 from flask import Response, send_from_directory
 
 # 独自モジュール読み込み
-import app.common as common
+import app.log as log
 from model.products import Product
-logger = common.get_logger("image")
+logger = log.get_logger("image")
 
 # 設定ファイル読み込み
 config = ConfigParser()

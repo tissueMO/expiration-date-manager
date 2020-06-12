@@ -12,17 +12,16 @@ from typing import Any, Dict, List
 from configparser import ConfigParser
 
 # 独自モジュール読み込み
+import app.log as log
 import app.common as common
 from model.products import Product
-logger = common.get_logger("remind")
+logger = log.get_logger("remind")
 
 # 設定ファイル読み込み
 config = ConfigParser()
 config.read("settings.conf", encoding="utf-8")
 
 ##### 設定読み込み ####################
-# Slack API トークン
-SLACK_TOKEN = config.get("slack", "token")
 # メッセージを送信するための Slack Incoming Webhook URL
 SLACK_INCOMING_WEBHOOK_URL = config.get("slack", "incoming_webhook_url")
 # このサーバーの外から見たときのURLのベース
@@ -65,6 +64,7 @@ def execute(request) -> Dict[str, Any]:
             .filter(Product.expiration_date == target_date) \
             .filter(Product.added_shopping_list == 0) \
             .filter(Product.consumed == 0) \
+            .order_by(Product.created_time) \
             .all()
 
         # Slackにリマインド通知を送信

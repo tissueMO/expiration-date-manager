@@ -1,52 +1,50 @@
 ##############################################################################
-#    Slackに本登録済みの情報を列挙するAPI
+#    Slackに本登録済みの情報を非同期的に列挙するAPI
 ##############################################################################
 import os
 import datetime
 import requests
 import traceback
 import json
+import subprocess
 from requests.exceptions import HTTPError
 from datetime import datetime as dt
 from typing import Any, Dict, List
 from configparser import ConfigParser
 
 # 独自モジュール読み込み
+import app.log as log
 import app.common as common
 from model.products import Product
-logger = common.get_logger("listup")
+logger = log.get_logger("listup")
 
 # 設定ファイル読み込み
 config = ConfigParser()
 config.read("settings.conf", encoding="utf-8")
 
 ##### 設定読み込み ####################
-# Slack API トークン
-SLACK_TOKEN = config.get("slack", "token")
-# メッセージを送信するための Slack Incoming Webhook URL
-SLACK_INCOMING_WEBHOOK_URL = config.get("slack", "incoming_webhook_url")
 # このサーバーの外から見たときのURLのベース
 URL_NAME_BASE = config.get("slack", "url_name_base")
 
 ##### 定数定義 ####################
 # 本登録済みの商品イメージ画像を取得するためのURL
 GET_IMAGE_URL = f"https://{URL_NAME_BASE}/images/"
+# 非同期的にSlackに商品イメージ画像と賞味期限を送信するためのURL
+LISTUP_ASYNC_URL = f"http://localhost/listup/async"
 
 
 def execute(request) -> Dict[str, Any]:
     """本登録済みの商品のうち、期限前で未アクションの商品イメージ画像と賞味期限をすべてSlack通知します。
+    Slackコマンドへの応答速度を優先するため、実際の通知は非同期的に行います。
 
     Arguments:
-        request -- GET リクエスト
+        request -- POST リクエスト
 
     Returns:
         Dict[str, Any] -- 処理結果
             {
-                // 操作に成功したかどうか
-                "success": False or True,
-
-                // 抽出した本登録レコードのIDリスト
-                "targets": [...]
+                // 表示メッセージ
+                "text": "..."
             }
     """
     logger.info(f"API Called.")
@@ -59,22 +57,28 @@ def execute(request) -> Dict[str, Any]:
             .filter(Product.expiration_date >= target_date) \
             .filter(Product.added_shopping_list == 0) \
             .filter(Product.consumed == 0) \
+            .order_by(Product.expiration_date) \
+            .order_by(Product.created_time) \
             .all()
 
-        # Slackに情報を送信
-        _send_products(products)
+        # 非同期的にSlackに情報を送信
+        _send_products_async(products)
+
+        if len(products) > 0:
+            message = f"現在、{len(products)}件の商品が管理されています。"
+        else:
+            message = f"現在管理されている商品はありません。"
 
         response = {
-            "success": True,
-            "targets": [product.id for product in products],
+            "text": message,
         }
 
     logger.info(f"API Exit: {response}")
     return response
 
 
-def _send_products(products: List[Product]):
-    """Slackの通知用リストチャンネルに商品情報を投稿します。
+def _send_products_async(products: List[Product]):
+    """非同期的にSlackの通知用リストチャンネルに商品情報を投稿します。
 
     Arguments:
         products {List[Product]} -- 商品リスト
@@ -88,35 +92,26 @@ def _send_products(products: List[Product]):
         for product in products
     ]
 
-    if len(products) > 0:
-        message = "現在管理されている商品は以下の通りです。"
-    else:
-        message = "現在管理されている商品はありません。"
-
     # POST リクエストパラメーターを生成
     parameters = {
-        "text": message,
+        "text": "",
         "attachments": [
             {
-                "text": f"{dt.strftime(product.created_time, '登録日：%Y-%m-%d')}",
+                "text": "",
                 "image_url": image_urls[i],
                 "fallback": "This food have not expired yet.",
                 # "color": "good",
                 "attachment_type": "default",
-                "pretext": f"期限日：{dt.strftime(product.expiration_date, '%Y-%m-%d')}",
+                "pretext": f"期限日：{dt.strftime(product.expiration_date, '%Y-%m-%d')} ({dt.strftime(product.created_time, '登録日：%Y-%m-%d')})",
             }
             for i, product in enumerate(products)
         ],
     }
     logger.debug(f"Slack API Request Parameters:\n{json.dumps(parameters, indent=4)}")
 
-    # Slack API に POST する
-    response = requests.post(
-        url=SLACK_INCOMING_WEBHOOK_URL,
-        data=json.dumps(parameters),
-        headers={"Content-Type": "application/json"}
-    )
-    logger.debug(f"Slack API Response: {response.status_code}\n{response.text}")
-
-    # ステータスコードが 200 以外であれば例外を投げる
-    response.raise_for_status()
+    # 非同期的にメッセージを送信する
+    command = [
+      "curl", "-X", "POST", "-H", "Content-Type: application/json",
+      "-d", json.dumps(parameters), LISTUP_ASYNC_URL
+    ]
+    subprocess.Popen(command)
