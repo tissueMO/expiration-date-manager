@@ -1,4 +1,4 @@
-FROM python:3.7 as builder
+FROM python:3.7
 
 # 依存パッケージのインストール
 RUN apt-get update && apt-get install -y \
