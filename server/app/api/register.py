@@ -12,10 +12,11 @@ from configparser import ConfigParser
 from sqlalchemy.orm.exc import NoResultFound
 
 # 独自モジュール読み込み
+import app.log as log
 import app.common as common
 from model.temporary_products import TemporaryProduct
 from model.products import Product
-logger = common.get_logger("register")
+logger = log.get_logger("register")
 
 # 設定ファイル読み込み
 config = ConfigParser()
