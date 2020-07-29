@@ -24,10 +24,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download result from previous job
-        uses: actions/download-artifact@v1
-        with:
-          name: ${{ env.DIST_DIR }}
+      - uses: actions/checkout@v2
 
       - name: Login registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login $DOCKER_REGISTRY -u ${{ github.actor }} --password-stdin
