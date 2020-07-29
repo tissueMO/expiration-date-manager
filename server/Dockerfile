@@ -54,7 +54,7 @@ ADD model model
 COPY apache-flask.wsgi .
 COPY alembic.ini .
 COPY logging.ini .
-COPY settings.conf .
+# COPY settings.conf .
 RUN mkdir /var/www/apache-flask/db
 
 # Apache の mod_wsgi に関する設定ファイルを適用
