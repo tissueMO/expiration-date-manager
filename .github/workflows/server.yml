@@ -11,10 +11,9 @@ on:
       - develop
 
 env:
-  DIST_DIR: public
   TARGET_DIR: server
   IMAGE_NAME: server
-  DOCKER_FILE: server/Dockerfile
+  DOCKER_FILE: Dockerfile
   DOCKER_REGISTRY: docker.pkg.github.com
 
 jobs:
@@ -30,6 +29,7 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login $DOCKER_REGISTRY -u ${{ github.actor }} --password-stdin
 
       - name: Build image
+        working-directory: ${{ env.TARGET_DIR }}
         run: docker build --file $DOCKER_FILE --tag $IMAGE_NAME .
 
       - name: Push image
