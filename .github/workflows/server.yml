@@ -18,31 +18,10 @@ env:
   DOCKER_REGISTRY: docker.pkg.github.com
 
 jobs:
-  prepare:
-    # バージョン管理に含めていないファイルを補完
-    name: Prepare to build
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Add secrets file
-        run: |
-          cat <<EOL > ./$TARGET_DIR/settings.conf
-          ${{ secrets.SERVER_SETTINGS }}
-          EOL
-
-      - name: Upload result for next job
-        uses: actions/upload-artifact@v1
-        with:
-          name: ${{ env.DIST_DIR }}
-          path: ${{ env.TARGET_DIR }}
-
   push:
     # ソースコード一式を Docker コンテナーに封入して GitHub Packages にプッシュする
     name: Push docker image to GitHub Packages
     runs-on: ubuntu-latest
-    needs: prepare
 
     steps:
       - name: Download result from previous job
